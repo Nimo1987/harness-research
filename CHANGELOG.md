@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [5.3.0] - 2026-03-26
+
+### Fixed
+- **quality_gate2 fallback target** — Changed from `9b_write_sections` to `14_merge_html`. The old fallback caused the agent to re-enter LLM steps (9b, 10, 12, 12.5) which were auto-confirmed without actual execution, resulting in empty section files and reports containing only title + references with no body content.
+- **merge_html_fragments() empty file detection** — Added validation that each HTML fragment file is non-empty before merging. Empty or whitespace-only files are now skipped with warnings logged to stderr and `merge_warnings.json`. Previously, empty section files were silently merged, producing body-less reports.
+
 ## [5.2.0] - 2026-03-26
 
 ### Added

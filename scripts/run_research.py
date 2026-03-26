@@ -1,9 +1,15 @@
 #!/usr/bin/env python3
 """
-Deep Research Pro v5.2 — State Machine Driver (Harness Research)
+Deep Research Pro v5.3 — State Machine Driver (Harness Research)
 
 核心设计：将 30 步流程的编排权从 LLM 收回到代码中。
 LLM agent 只需循环调用此脚本，脚本告诉 agent 下一步做什么。
+
+v5.3 变更：
+  - 修复：16_quality_gate2 回退目标从 9b_write_sections 改为 14_merge_html，
+    避免回退后 agent auto-confirm LLM 步骤导致正文文件被清空
+  - 修复：merge_html_fragments() 增加空文件检测和警告，
+    不再静默合并空章节文件
 
 v5.2 变更：
   - 新增 3a2_dedup（搜索去重前置）
@@ -190,7 +196,7 @@ def cmd_init(args):
         "skipped_steps": [],
         "sections": [],  # 章节列表（步骤 1 完成后填充）
         "data_sources": {},  # 数据源配置（步骤 1 完成后填充）
-        "version": "5.2.0",
+        "version": "5.3.0",
     }
     save_state(workspace, state)
 
@@ -200,7 +206,7 @@ def cmd_init(args):
             "message": f"工作目录已创建: {workspace}",
             "next_step": STEPS[0]["id"],
             "total_steps": len(STEPS),
-            "version": "5.2.0",
+            "version": "5.3.0",
         }
     )
 
@@ -687,9 +693,12 @@ def execute_code_step(step_id, state, workspace, skill_dir):
         rc, out, err = run_script(cmd)
         if rc != 0 and retry < 1:
             state["report_retry"] = retry + 1
-            # 回退到章节撰写（v5.2: 改为 9b_write_sections）
+            # v5.3 fix: fallback to 14_merge_html instead of 9b_write_sections
+            # quality_gate2 checks report formatting (Markdown residue, word count, etc.),
+            # section content is already written and should not be re-generated.
+            # Falling back to 9b caused agent to auto-confirm LLM steps, emptying body files.
             for i, s in enumerate(STEPS):
-                if s["id"] == "9b_write_sections":
+                if s["id"] == "14_merge_html":
                     state["current_step_index"] = i
                     break
             save_state(workspace, state)
@@ -697,7 +706,7 @@ def execute_code_step(step_id, state, workspace, skill_dir):
                 {
                     "status": "retry",
                     "step": step_id,
-                    "message": f"报告质量门控未通过，需重写: {out.strip()}",
+                    "message": f"报告质量门控未通过，从合并步骤重试（正文已保留）: {out.strip()}",
                     "retry_count": retry + 1,
                 }
             )
@@ -1328,27 +1337,34 @@ def generate_references(workspace, state):
 
 
 def merge_html_fragments(workspace, state):
-    """合并所有 HTML 片段为完整报告"""
+    """合并所有 HTML 片段为完整报告
+
+    v5.3 fix: validate that fragment files are non-empty before merging,
+    preventing silent generation of body-less reports.
+    """
     ana = os.path.join(workspace, "analysis")
     topic = state["topic"]
+    empty_warnings = []
 
     parts = []
     # 1. 标题
     parts.append(f'<h1 class="report-title">{topic}</h1>')
     parts.append(
         f'<div class="report-meta">Deep Research Report · 2026年3月 '
-        f'<span class="version-badge">v5.2</span></div>'
+        f'<span class="version-badge">v5.3</span></div>'
     )
     parts.append('<div class="report-meta">⚠ 本报告仅供研究参考，不构成投资建议</div>')
 
     # 2. 执行摘要
     exec_path = os.path.join(ana, "exec_summary.html")
     if os.path.exists(exec_path):
-        with open(exec_path, "r", encoding="utf-8") as f:
-            parts.append(f.read())
+        content = _read_and_check(exec_path, "执行摘要", empty_warnings)
+        if content:
+            parts.append(content)
 
     # 3. 各章节
     sections_dir = os.path.join(ana, "sections")
+    non_empty_sections = 0
     if os.path.exists(sections_dir):
         section_files = sorted(
             [
@@ -1358,30 +1374,90 @@ def merge_html_fragments(workspace, state):
             ]
         )
         for sf in section_files:
-            with open(os.path.join(sections_dir, sf), "r", encoding="utf-8") as f:
-                parts.append(f.read())
+            content = _read_and_check(
+                os.path.join(sections_dir, sf), f"章节文件 {sf}", empty_warnings
+            )
+            if content:
+                parts.append(content)
+                non_empty_sections += 1
 
     # 4. 研究方法
     meth_path = os.path.join(ana, "methodology.html")
     if os.path.exists(meth_path):
-        with open(meth_path, "r", encoding="utf-8") as f:
-            parts.append(f.read())
+        content = _read_and_check(meth_path, "研究方法", empty_warnings)
+        if content:
+            parts.append(content)
 
     # 5. 人工验证清单
     verify_path = os.path.join(ana, "human_verification.html")
     if os.path.exists(verify_path):
-        with open(verify_path, "r", encoding="utf-8") as f:
-            parts.append(f.read())
+        content = _read_and_check(verify_path, "人工验证清单", empty_warnings)
+        if content:
+            parts.append(content)
 
     # 6. 参考文献
     ref_path = os.path.join(ana, "references.html")
     if os.path.exists(ref_path):
-        with open(ref_path, "r", encoding="utf-8") as f:
-            parts.append(f.read())
+        content = _read_and_check(ref_path, "参考文献", empty_warnings)
+        if content:
+            parts.append(content)
+
+    # v5.3: output empty-file warnings to stderr and a warnings file
+    if empty_warnings:
+        warn_msg = (
+            f"[WARN] merge_html_fragments: 发现 {len(empty_warnings)} 个空/无效片段文件:\n"
+            + "\n".join(f"  - {w}" for w in empty_warnings)
+        )
+        print(warn_msg, file=sys.stderr)
+        # save warnings for downstream steps
+        warn_path = os.path.join(ana, "merge_warnings.json")
+        with open(warn_path, "w", encoding="utf-8") as f:
+            json.dump(
+                {
+                    "empty_fragments": empty_warnings,
+                    "non_empty_sections": non_empty_sections,
+                },
+                f,
+                ensure_ascii=False,
+                indent=2,
+            )
+
+    if non_empty_sections == 0 and os.path.exists(sections_dir):
+        print(
+            "[ERROR] merge_html_fragments: 所有章节文件均为空！报告将缺失正文。",
+            file=sys.stderr,
+        )
 
     full_html = "\n\n".join(parts)
     with open(os.path.join(ana, "full_report.html"), "w", encoding="utf-8") as f:
         f.write(full_html)
+
+
+def _read_and_check(filepath, label, warnings_list):
+    """Read an HTML fragment file and check whether it is empty.
+
+    Returns file content (if non-empty) or None (if empty/invalid),
+    appending a warning to warnings_list when appropriate.
+    """
+    try:
+        with open(filepath, "r", encoding="utf-8") as f:
+            content = f.read()
+    except Exception as e:
+        warnings_list.append(f"{label}: 读取失败 ({e})")
+        return None
+
+    stripped = content.strip()
+    if not stripped:
+        warnings_list.append(f"{label}: 文件为空 ({filepath})")
+        return None
+    # check for files containing only empty HTML tags (e.g. <div></div>)
+    text_only = re.sub(r"<[^>]*>", "", stripped).strip()
+    if not text_only:
+        warnings_list.append(
+            f"{label}: 文件仅包含空 HTML 标签，无实际内容 ({filepath})"
+        )
+        return None
+    return content
 
 
 # =============================================================================
@@ -1391,7 +1467,7 @@ def merge_html_fragments(workspace, state):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Harness Research v5.2 State Machine Driver"
+        description="Harness Research v5.3 State Machine Driver"
     )
     subparsers = parser.add_subparsers(dest="command")
 
