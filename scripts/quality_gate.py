@@ -108,30 +108,31 @@ def check_sources(args):
         print(f"  [INFO] T0 原始数据信源: {t0} 条")
 
     # ===== 一级权威 =====
+    # v5.2: T1/T2 不足降级为 warning + 首次重试建议，不再 hard_fail
+    # 理由：很多主题（技术、文化、新兴领域）天然缺少 T1/T2 信源，
+    # 重搜两次结果不会变，只浪费时间和 token
     t1 = sum(1 for s in sources if s.get("tier") == 1)
     if t1 < min_t1:
-        if retry_count < max_retries:
+        if retry_count < 1:
+            # 首次不足：给一次重试机会（加 site 限定可能有用）
             hard_fails.append(
                 f"一级权威信源不足: {t1}/{min_t1}，"
                 f"建议搜索关键词加上 site:.gov OR site:.edu OR site:nature.com"
             )
         else:
-            warnings.append(
-                f"一级权威信源不足: {t1}/{min_t1}（已重试{retry_count}次，降级继续）"
-            )
+            warnings.append(f"一级权威信源不足: {t1}/{min_t1}（已重试，降级继续）")
 
     # ===== 二级专业 =====
     t2 = sum(1 for s in sources if s.get("tier") == 2)
     if t2 < min_t2:
-        if retry_count < max_retries:
+        if retry_count < 1:
+            # 首次不足：给一次重试机会
             hard_fails.append(
                 f"二级专业信源不足: {t2}/{min_t2}，"
                 f"建议搜索关键词加上 site:mckinsey.com OR site:gartner.com"
             )
         else:
-            warnings.append(
-                f"二级专业信源不足: {t2}/{min_t2}（已重试{retry_count}次，降级继续）"
-            )
+            warnings.append(f"二级专业信源不足: {t2}/{min_t2}（已重试，降级继续）")
 
     # ===== 平均 CRAAP =====
     avg = stats.get("avg_craap_score", 0)
