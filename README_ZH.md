@@ -54,7 +54,6 @@ Agent 只需做三件事：`init` → 循环 `next` / `confirm` → 直到 `comp
 
 这是一个 **Harness Skill**，设计为在支持 Skill/工具编排的 AI Agent 中运行：
 
-- **[OpenCode](https://opencode.ai)**（推荐）— 作为 Skill 安装
 - **任何能执行 Shell 命令并解析 JSON 指令的 LLM Agent**
 
 ### 系统依赖
