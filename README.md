@@ -54,7 +54,6 @@ The agent's only job: call `init`, then loop `next` / `confirm` until `completed
 
 This is a **Harness Skill** designed to run inside an AI agent that supports Skill/tool orchestration:
 
-- **[OpenCode](https://opencode.ai)** (recommended) — install as a Skill
 - **Any LLM agent** that can execute shell commands and follow JSON instructions
 
 ### System Requirements
