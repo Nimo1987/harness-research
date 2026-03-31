@@ -10,6 +10,48 @@
 
 ---
 
+> ### AI Agent 安装指引（Agent 请读这里）
+>
+> **这是一个 Node.js MCP 服务器，不是 Python 包。** 不要 `git clone`，不要 `pip install`。
+>
+> **第 1 步 — 一次性配置**（在用户终端运行）：
+> ```bash
+> npx harness-research-mcp setup
+> ```
+> 交互式向导会引导配置 API Key（存储在 `~/.harness-research/.env`）。
+>
+> **第 2 步 — 注册为 MCP 服务器**，写入你的 Agent 配置文件：
+>
+> Claude Desktop / Cursor / Windsurf — 编辑 MCP 配置 JSON：
+> ```json
+> {
+>   "mcpServers": {
+>     "harness-research": {
+>       "command": "npx",
+>       "args": ["-y", "harness-research-mcp"]
+>     }
+>   }
+> }
+> ```
+>
+> OpenCode — 添加到 `~/.config/opencode/opencode.json`：
+> ```json
+> {
+>   "mcp": {
+>     "harness-research": {
+>       "command": "npx",
+>       "args": ["-y", "harness-research-mcp"]
+>     }
+>   }
+> }
+> ```
+>
+> **完成。** 注册后 Agent 将获得 3 个工具：`harness_research`（完整调研报告）、`harness_search`（快速搜索）、`harness_status`（进度查询）。
+>
+> **不要** clone 本仓库、不要从源码 build、不要直接运行 `node` 或 `python`。`npx` 会自动处理一切。
+
+---
+
 ## 为什么需要这个工具？
 
 ### 现有「深度调研」工具的问题

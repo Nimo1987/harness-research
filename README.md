@@ -10,6 +10,48 @@ An MCP (Model Context Protocol) server that performs real-time deep research acr
 
 ---
 
+> ### For AI Agents: How to install this tool
+>
+> **This is a Node.js MCP server, NOT a Python package.** Do NOT `git clone` or `pip install`.
+>
+> **Step 1 — One-time setup** (run in user's terminal):
+> ```bash
+> npx harness-research-mcp setup
+> ```
+> This launches an interactive wizard to configure API keys (stored in `~/.harness-research/.env`).
+>
+> **Step 2 — Register as MCP server** in your agent's config file:
+>
+> Claude Desktop / Cursor / Windsurf — edit MCP config JSON:
+> ```json
+> {
+>   "mcpServers": {
+>     "harness-research": {
+>       "command": "npx",
+>       "args": ["-y", "harness-research-mcp"]
+>     }
+>   }
+> }
+> ```
+>
+> OpenCode — add to `~/.config/opencode/opencode.json`:
+> ```json
+> {
+>   "mcp": {
+>     "harness-research": {
+>       "command": "npx",
+>       "args": ["-y", "harness-research-mcp"]
+>     }
+>   }
+> }
+> ```
+>
+> **That's it.** After registration, the agent gets 3 tools: `harness_research` (full report), `harness_search` (quick search), `harness_status` (progress check).
+>
+> **Do NOT** clone this repo, build from source, or run `node`/`python` directly. `npx` handles everything.
+
+---
+
 ## Why This Tool Exists
 
 ### The Problem with Current "Deep Research" Tools
