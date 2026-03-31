@@ -49,6 +49,22 @@
 > **完成。** 注册后 Agent 将获得 3 个工具：`harness_research`（完整调研报告）、`harness_search`（快速搜索）、`harness_status`（进度查询）。
 >
 > **不要** clone 本仓库、不要从源码 build、不要直接运行 `node` 或 `python`。`npx` 会自动处理一切。
+>
+> **异步工作流 — 无超时问题：**
+> `harness_research` 会立即返回 `task_id`（< 1 秒）。调研在后台运行（约 10 分钟）。你**必须**每 30-60 秒调用 `harness_status(task_id)` 轮询进度，直到状态变为 `"completed"` 或 `"failed"`。这种设计意味着默认 60 秒的 MCP 超时**不会**造成问题。
+>
+> 如果你的 MCP 客户端支持配置超时时间，建议设为 **1200 秒（20 分钟）** 作为安全余量：
+> ```json
+> {
+>   "mcpServers": {
+>     "harness-research": {
+>       "command": "npx",
+>       "args": ["-y", "harness-research-mcp"],
+>       "timeout": 1200
+>     }
+>   }
+> }
+> ```
 
 ---
 

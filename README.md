@@ -49,6 +49,22 @@ An MCP (Model Context Protocol) server that performs real-time deep research acr
 > **That's it.** After registration, the agent gets 3 tools: `harness_research` (full report), `harness_search` (quick search), `harness_status` (progress check).
 >
 > **Do NOT** clone this repo, build from source, or run `node`/`python` directly. `npx` handles everything.
+>
+> **Async workflow — no timeout issues:**
+> `harness_research` returns a `task_id` immediately (< 1 second). The research runs in the background (~10 minutes). You **must** poll `harness_status(task_id)` every 30–60 seconds until status is `"completed"` or `"failed"`. This design means the default 60-second MCP timeout will NOT be a problem.
+>
+> If your MCP client has a configurable timeout, setting it to **1200 seconds (20 minutes)** is still recommended as a safety margin:
+> ```json
+> {
+>   "mcpServers": {
+>     "harness-research": {
+>       "command": "npx",
+>       "args": ["-y", "harness-research-mcp"],
+>       "timeout": 1200
+>     }
+>   }
+> }
+> ```
 
 ---
 

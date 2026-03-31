@@ -5,7 +5,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod"
 import { loadEnv, isSetupComplete, hasMinimalKeys, getPlatformCapabilities } from "./utils/config.js"
-import { runResearch, getTask, getAllTasks } from "./core/pipeline.js"
+import { runResearch, startResearchBackground, getTask, getAllTasks } from "./core/pipeline.js"
 import { searchTavily, searchBrave, searchArxiv, searchPubmed } from "./core/search.js"
 import { dedup } from "./core/dedup.js"
 
@@ -24,7 +24,16 @@ const server = new McpServer({
 
 server.tool(
   "harness_research",
-  "Run a deep research session: multi-source search (Tavily/Brave/arXiv/PubMed/Tushare) + CRAAP source evaluation + cross-verification → professional HTML/DOCX/PDF report. Takes ~8-12 minutes. Driven by affordable models like Kimi K2.5.",
+  `Start a deep research session: multi-source search (Tavily/Brave/arXiv/PubMed/Tushare) + CRAAP source evaluation + cross-verification → professional HTML/DOCX/PDF report.
+
+IMPORTANT: This tool returns IMMEDIATELY with a task_id. The research runs in the background and takes ~8-12 minutes. After calling this tool, you MUST poll harness_status with the returned task_id every 30-60 seconds until status is "completed" or "failed". Do NOT wait idle — poll actively.
+
+Workflow:
+1. Call harness_research → get task_id (returns in <1 second)
+2. Call harness_status with task_id every 30-60s to check progress
+3. When status is "completed", harness_status returns the output file paths
+
+Driven by affordable models like Kimi K2.5 (~$0.01/run).`,
   {
     topic: z.string().describe("Research topic, e.g. 'Global AI chip market landscape 2025'"),
     provider: z.enum(["kimi", "openrouter"]).optional().describe("LLM provider: kimi (default, cheapest) or openrouter"),
@@ -56,39 +65,21 @@ server.tool(
       }
     }
 
-    try {
-      const progressMessages: string[] = []
-      const result = await runResearch(
-        args.topic,
-        {
-          provider: args.provider,
-          model: args.model,
-          outputDir: args.output_dir,
-          formats: args.formats,
-        },
-        (step, progress, detail) => {
-          progressMessages.push(`[${progress}%] ${step}: ${detail}`)
-        },
-      )
+    // Start research in background (fire-and-forget), return task_id immediately
+    const taskId = startResearchBackground(args.topic, {
+      provider: args.provider,
+      model: args.model,
+      outputDir: args.output_dir,
+      formats: args.formats,
+    })
 
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: result.summary,
-          },
-        ],
-      }
-    } catch (e: any) {
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: `Research failed: ${e.message}\n\nRun 'npx harness-research-mcp doctor' to diagnose issues.`,
-          },
-        ],
-        isError: true,
-      }
+    return {
+      content: [
+        {
+          type: "text" as const,
+          text: `Research started!\n\nTask ID: ${taskId}\nTopic: ${args.topic}\n\nThe research is running in the background and will take ~8-12 minutes.\nPoll progress with: harness_status(task_id="${taskId}")\nPoll every 30-60 seconds until status is "completed".`,
+        },
+      ],
     }
   },
 )
@@ -152,7 +143,14 @@ server.tool(
 
 server.tool(
   "harness_status",
-  "Check the status and progress of a running or completed research task.",
+  `Check the progress of a research task started by harness_research.
+
+After calling harness_research, you MUST poll this tool with the returned task_id every 30-60 seconds.
+- status "running": research is in progress, keep polling
+- status "completed": research is done, output file paths are included
+- status "failed": an error occurred, error message is included
+
+If no task_id is provided, lists all tasks.`,
   {
     task_id: z.string().optional().describe("Task ID to check. If omitted, lists all tasks."),
   },

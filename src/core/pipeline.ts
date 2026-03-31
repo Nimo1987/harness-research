@@ -46,6 +46,40 @@ export function getAllTasks(): ResearchTask[] {
   return Array.from(tasks.values())
 }
 
+/**
+ * Start research in the background (fire-and-forget).
+ * Returns a task_id immediately. Use getTask() to poll progress.
+ */
+export function startResearchBackground(
+  topic: string,
+  options: {
+    provider?: string
+    model?: string
+    outputDir?: string
+    formats?: string[]
+  },
+): string {
+  const taskId = `research-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+
+  // Pre-register task so harness_status can find it immediately
+  const task: ResearchTask = {
+    id: taskId,
+    topic,
+    status: "running",
+    step: "initializing",
+    progress: 0,
+    startTime: Date.now(),
+  }
+  tasks.set(taskId, task)
+
+  // Fire and forget — do NOT await
+  runResearch(topic, options, undefined, taskId).catch(() => {
+    // Error is already captured in the task object by runResearch
+  })
+
+  return taskId
+}
+
 /** Progress callback type */
 type ProgressCallback = (step: string, progress: number, detail: string) => void
 
@@ -59,19 +93,21 @@ export async function runResearch(
     formats?: string[]
   },
   onProgress?: ProgressCallback,
+  externalTaskId?: string,
 ): Promise<{
   taskId: string
   outputs: { html?: string; pdf?: string; docx?: string; markdown?: string }
   stats: ResearchStats
   summary: string
 }> {
-  const taskId = `research-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  const taskId = externalTaskId || `research-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
   const startTime = Date.now()
   const llmConfig = createLLMConfig(options.provider, options.model)
   const outputDir = options.outputDir || process.cwd()
   const requestedFormats = options.formats || ["html", "docx"]
 
-  const task: ResearchTask = {
+  // Reuse pre-registered task if exists (from startResearchBackground), otherwise create new
+  const task: ResearchTask = tasks.get(taskId) || {
     id: taskId,
     topic,
     status: "running",
