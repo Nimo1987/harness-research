@@ -1,0 +1,63 @@
+{
+  "name": "harness-research-mcp",
+  "version": "2.0.0",
+  "description": "Deep research MCP server: multi-source search + CRAAP evaluation + cross-verification + professional reports",
+  "type": "module",
+  "license": "Apache-2.0",
+  "author": "Jiaqi <nimo1987@users.noreply.github.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Nimo1987/harness-research.git"
+  },
+  "homepage": "https://github.com/Nimo1987/harness-research",
+  "bugs": {
+    "url": "https://github.com/Nimo1987/harness-research/issues"
+  },
+  "keywords": [
+    "mcp",
+    "research",
+    "deep-research",
+    "ai",
+    "craap",
+    "tavily",
+    "brave-search",
+    "arxiv",
+    "pubmed",
+    "model-context-protocol"
+  ],
+  "bin": {
+    "harness-research": "./bin/cli.mjs"
+  },
+  "main": "./dist/index.js",
+  "files": [
+    "bin/",
+    "dist/",
+    "resources/"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "start": "node dist/index.js",
+    "setup": "node bin/cli.mjs setup",
+    "doctor": "node bin/cli.mjs doctor",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "cheerio": "^1.0.0",
+    "docx": "^9.4.1",
+    "yaml": "^2.7.1",
+    "zod": "^3.25.20"
+  },
+  "optionalDependencies": {
+    "puppeteer": "^24.9.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "tsup": "^8.4.0",
+    "typescript": "^5.8.3"
+  }
+}

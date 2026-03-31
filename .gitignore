@@ -1,34 +1,32 @@
 # Dependencies
-__pycache__/
-*.py[cod]
-*$py.class
-*.egg-info/
+node_modules/
 dist/
-build/
-*.egg
 
-# Environment
-.env
-.env.local
-.env.*.local
+# OS
+.DS_Store
+Thumbs.db
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
-*~
 
-# OS
-.DS_Store
-Thumbs.db
+# Environment
+.env
+.env.local
+.env.*.local
 
-# Research workspace outputs (generated at runtime)
-**/deep-research-*/
-**/sources/
-**/analysis/
-**/output/
-driver_state.json
-
-# Logs
+# Build artifacts
+*.tgz
 *.log
+
+# Test output
+*.html
+*.pdf
+*.docx
+*.md
+!README.md
+!README_ZH.md
+!CHANGELOG.md
+!resources/**/*.md

@@ -1,65 +1,39 @@
 # Changelog
 
-All notable changes to this project will be documented in this file.
+## v2.0.0 (2026-03-31)
 
-## [5.3.0] - 2026-03-26
+**Major rewrite: MCP Server architecture**
 
-### Fixed
-- **quality_gate2 fallback target** — Changed from `9b_write_sections` to `14_merge_html`. The old fallback caused the agent to re-enter LLM steps (9b, 10, 12, 12.5) which were auto-confirmed without actual execution, resulting in empty section files and reports containing only title + references with no body content.
-- **merge_html_fragments() empty file detection** — Added validation that each HTML fragment file is non-empty before merging. Empty or whitespace-only files are now skipped with warnings logged to stderr and `merge_warnings.json`. Previously, empty section files were silently merged, producing body-less reports.
+This is a complete rewrite of Harness Research as a standard MCP (Model Context Protocol) server. It can now be used as a plugin by any MCP-compatible AI agent.
 
-## [5.2.0] - 2026-03-26
+### Breaking Changes
+- Repackaged from OpenCode custom tool to standalone MCP Server
+- Removed Python dependency entirely — now pure Node.js
+- New configuration location: `~/.harness-research/` (was `~/.config/opencode/research-resources/`)
 
-### Added
-- **CRAAP Code Scoring** (`craap_code_score.py`) — Currency and Authority dimensions now computed deterministically by code instead of LLM, reducing token cost by ~35%
-- **Search Deduplication** (`dedup_sources.py`) — 3-level dedup (URL normalization, fuzzy title matching, SimHash content fingerprinting) runs immediately after search, removing 15-25% duplicate sources
-- **Section-Source Pre-matching** (`match_sources_to_sections.py`) — TF-IDF + Jaccard similarity matching assigns relevant sources to each chapter before writing, reducing per-section prompt length by 40-50%
-- **Table Sorting** in interactive HTML — click column headers to sort tables (numeric and string)
-- **Table Pagination** in PDF — tables exceeding 15 rows are automatically split with continuation markers
-- **Report Consistency Checks** in quality gate — orphan reference detection, executive summary-body consistency, confidence distribution validation
-- **`status` subcommand** — check current progress without advancing the pipeline
-- **Resume instructions** in SKILL.md — say "continue" to resume from breakpoint
+### New Features
+- **MCP Standard Protocol**: Works with Claude Desktop, Cursor, Windsurf, OpenClaw, OpenCode, and any MCP client
+- **Interactive Setup Wizard**: `npx harness-research-mcp setup` guides first-time configuration
+- **Doctor Command**: `npx harness-research-mcp doctor` for environment diagnostics
+- **Pure Node.js Rendering**: DOCX via `docx` npm package (all platforms), PDF via Puppeteer (macOS)
+- **3 MCP Tools**: `harness_research` (full report), `harness_search` (quick search), `harness_status` (progress)
+- **Cross-platform**: macOS (HTML+DOCX+PDF), Windows/Linux (HTML+DOCX+Markdown)
+- **Zero Python**: No more weasyprint, no more cairo/pango system dependencies
+- **npx one-liner**: `npx harness-research-mcp` — zero global install required
 
-### Changed
-- Step `5_craap` split into `5a_craap_code` (CODE) + `5b_craap_llm` (LLM)
-- Step `9_write_sections` split into `9a_match_sources` (CODE) + `9b_write_sections` (LLM)
-- Step `3a2_dedup` inserted after `3a_search_web`
-- `aggregate_craap.py` now merges code scores and LLM scores with `scoring_method` field
-- Prompts `03a_craap_extract.md` and `03b_craap_batch.md` reduced from 5 dimensions to 3
-- Total pipeline steps: 27 → 30 (LLM: 10, CODE: 20)
+### Core (unchanged)
+- 6-step research pipeline
+- 5 data sources: Tavily, Brave, arXiv, PubMed, Tushare
+- CRAAP evaluation framework (5-dimension + T0-T5 tiers)
+- 530+ domain credibility database
+- Cross-verification with conflict detection
+- Parallel chapter writing
 
-### Performance
-- LLM token consumption: ~150K-200K → ~90K-130K (35-40% reduction)
-- End-to-end time: ~20 min → ~14-16 min
-- CRAAP evaluation determinism: 60% → 80% (2/5 dimensions now code-computed)
+---
 
-## [5.1.0] - 2026-03-25
+## v1.7.0 (Previous)
 
-### Added
-- State machine driver (`run_research.py`) — all 27 steps orchestrated by code
-- `init` / `next` / `confirm` protocol for agent interaction
-- Breakpoint resume via `driver_state.json`
-
-### Changed
-- Migrated from LLM-driven step sequencing to deterministic state machine
-- Zero step omission guarantee
-
-## [5.0.0] - 2026-03-24
-
-### Added
-- T0 raw data tier (government APIs, regulatory filings)
-- 6-layer search architecture
-- 10 government data source APIs
-- Regulatory filing access (SEC EDGAR, CNINFO, HKEX, EDINET)
-- Weak signal collection (patents, hiring, procurement, academic trends)
-- Information bubble detection (5-dimensional diversity scoring)
-- Contradiction analysis with counter-intuitive findings
-- Cross-language framework comparison
-- Human verification checklist generation
-- Interactive HTML report with Chart.js, dark/light theme, collapsible sections
-- Triple-format rendering (PDF + DOCX + Interactive HTML)
-
-### Changed
-- Source tiers: T1-T5 → T0-T5 (530+ domains)
-- Search fallback chain: Tavily → Brave → DuckDuckGo
-- Academic search: arXiv → arXiv + Semantic Scholar + PubMed
+- State machine architecture with 30-step pipeline
+- Python-based rendering (weasyprint + python-docx)
+- OpenCode custom tool integration
+- Parallel section writing (4 workers)

@@ -1,164 +1,290 @@
-# Harness Research
+[English](./README.md) | **中文**
 
-**[English](README.md)**
+# Harness Research MCP
 
-基于**线束工程（Harness Engineering）**范式构建的状态机驱动型深度研究引擎 —— 一个从探索 AI Agent 开发新模式中诞生的实践产品。
+**让任何 AI Agent 拥有专业级深度调研能力的 MCP 插件。**
 
-核心理念：不让 LLM 决定下一步做什么。整个 30 步研究流水线由确定性状态机控制，AI agent 只做它擅长的事：对文本进行推理。搜索、评分、过滤、渲染 —— 全部用纯代码完成。
+一个基于 [Model Context Protocol (MCP)](https://modelcontextprotocol.io) 的深度调研工具服务器。5 个数据源实时搜索、CRAAP 信源评估框架、交叉验证，最终输出带参考文献的专业报告。全程用国产模型（如 Kimi K2.5）驱动，成本极低。
 
-## 功能概述
+> 走一次完整的深度调研报告，约 10 分钟，Kimi K2.5 即可顺利驱动。
 
-给它一个研究主题，获得三种格式的专业研究报告（PDF + DOCX + 交互式 HTML），报告背后是：
+---
 
-- **6 层搜索** — 覆盖网页、学术、政府、监管、金融和弱信号源
-- **530+ 域名分级** — T0-T5 六级信源可信度体系
-- **CRAAP 评估** — 混合代码+LLM评分（时效性/权威性由代码计算，相关性/准确性/目的性由LLM评估）
-- **三角验证** — 多信源交叉验证，含政府数据对照
-- **矛盾分析** — 主动发现反直觉洞察
-- **信息茧房检测** — 5 维多样性评分
-- **质量门控** — 信源质量不达标时自动重试
+## 为什么需要这个工具？
 
-## 架构：线束工程的落地实践
+### 现有「深度调研」工具的问题
 
-本项目是 **Harness Skill** 模式的实际实现：
+市面上的深度调研工具（Perplexity Deep Research、ChatGPT Research、Gemini Deep Research 等）存在几个根本缺陷：
+
+| 问题 | 说明 |
+|------|------|
+| **依赖模型旧知识** | 它们本质上是让 LLM 从训练数据中"回忆"信息，而非去互联网上实时搜索。你得到的可能是几个月甚至一年前的过时数据。 |
+| **信源不透明** | 大部分工具不告诉你信息来自哪里，无法验证准确性。引用的 URL 有些甚至是幻觉生成的。 |
+| **没有信源评估** | 一篇社交媒体帖子和一份政府统计数据被同等对待。没有任何机制评估信源的可信度。 |
+| **单一搜索源** | 只用一个搜索引擎，覆盖面窄。学术论文、金融数据、政府公报无法触达。 |
+| **无法自定义** | 绑定在特定平台上，无法集成到你自己的 AI Agent 工作流中。 |
+| **价格昂贵** | 依赖 GPT-4、Claude 等顶级模型，单次调研成本 $1-5+。 |
+
+### Harness Research 的不同
+
+| 特性 | Harness Research | Perplexity / ChatGPT / Gemini |
+|------|-----------------|-------------------------------|
+| **数据来源** | 5 个实时搜索 API（Tavily + Brave + arXiv + PubMed + Tushare） | 单一搜索引擎或模型内部知识 |
+| **数据时效** | **全部实时搜索**，不依赖任何 LLM 训练数据 | 混合旧知识 + 有限搜索 |
+| **信源评估** | CRAAP 框架 5 维评分 + T0-T5 六级分类（530+ 域名数据库） | 无 |
+| **交叉验证** | 自动检测数据冲突 + 反直觉发现 | 无 |
+| **参考文献** | 每条引用标注信源层级、可信度评分、发布日期 | 简单 URL 列表或无引用 |
+| **LLM 要求** | Kimi K2.5 即可驱动（约 ¥0.1/次） | GPT-4 / Claude（$1-5/次） |
+| **输出格式** | HTML + DOCX + PDF + Markdown | 纯文本 |
+| **可集成性** | MCP 标准协议，任何 Agent 可用 | 绑定特定平台 |
+| **开源** | Apache 2.0 | 闭源 |
+
+**核心理念：LLM 只负责"思考"，不负责"知道"。一切事实数据都来自实时搜索。**
+
+---
+
+## 六步调研流程
 
 ```
-传统方式:    LLM 决定一切 → 不可预测、成本高
-线束方式:    代码编排、LLM 推理 → 确定性、高效
+用户: "帮我调研 2025 年全球 AI 芯片市场格局"
+         │
+         ▼
+Step 1 ── 研究计划 (LLM)
+         │  生成章节结构 + 搜索关键词
+         ▼
+Step 2 ── 五源并行搜索 (Code)
+         │  Tavily + Brave + arXiv + PubMed + Tushare
+         │  去重 → 限制 50 条
+         ▼
+Step 3 ── CRAAP 信源评估 (Code + LLM)
+         │  代码预筛: T5 淘汰、超 3 年淘汰
+         │  LLM 分批评分: Relevance + Accuracy + Purpose
+         │  加权平均 → 过滤低分源
+         ▼
+Step 4 ── 交叉验证 (LLM)
+         │  数据三角验证 + 矛盾检测 + 反直觉发现
+         ▼
+Step 5 ── 并行撰写 (LLM)
+         │  各章节并行 + 执行摘要
+         ▼
+Step 6 ── 渲染输出 (Code)
+         │  HTML + DOCX + PDF (macOS) + Markdown
+         ▼
+    输出专业调研报告 (~10 分钟)
 ```
 
-`run_research.py` 状态机：
-- 严格定义 30 步执行顺序（10 步 LLM + 20 步 CODE）
-- CODE 步骤直接执行（搜索、评分、过滤、渲染）
-- LLM 步骤提供精确的 prompt、变量和输出格式
-- 自动管理重试、质量门控和降级策略
-
-Agent 只需做三件事：`init` → 循环 `next` / `confirm` → 直到 `completed`。
-
-**效果**：零步骤遗漏。确定性执行。相比全 LLM 驱动方案，token 成本降低 35-40%。
-
-## 成本与时间估算
-
-| 指标 | 典型范围 |
-|------|---------|
-| **总 LLM Token 消耗** | 90K - 130K tokens / 次研究 |
-| **端到端耗时** | 14 - 20 分钟 |
-| **LLM 步骤数** | 10 步（总共 30 步） |
-| **评估信源数** | 30 - 60 条 / 次研究 |
-
-> Token 消耗取决于主题复杂度和搜索到的信源数量。v5.2 的混合 CRAAP 评分和信源预匹配机制，相比 v5.0 减少了约 35-40% 的 LLM token 消耗。
-
-## 环境要求
-
-### 运行环境
-
-这是一个 **Harness Skill**，设计为在支持 Skill/工具编排的 AI Agent 中运行：
-
-- **任何能执行 Shell 命令并解析 JSON 指令的 LLM Agent**
-
-### 系统依赖
-
-- Python 3.9+
-- PDF 渲染的系统依赖：
-  ```bash
-  # macOS
-  brew install pango libffi
-
-  # Ubuntu/Debian
-  sudo apt-get install libpango1.0-dev libffi-dev
-  ```
-
-### Python 依赖
-
-```bash
-pip install -r requirements.txt
-```
-
-### API Key 配置
-
-复制 `.env.example` 为 `.env` 并填入你的 Key：
-
-```bash
-cp .env.example .env
-```
-
-| Key | 是否必需 | 是否免费 | 用途 |
-|-----|---------|---------|------|
-| `TAVILY_API_KEY` | **必需** | 有免费额度 | 主搜索引擎 |
-| `BRAVE_API_KEY` | 推荐 | 有免费额度 | 搜索降级备选 |
-| `FRED_API_KEY` | 可选 | 免费 | 美国经济数据 |
-| `PUBMED_API_KEY` | 可选 | 免费 | 生物医学文献 |
-| `SEC_EDGAR_USER_AGENT` | 可选 | 免费（只需邮箱） | SEC 监管文件 |
-| `TUSHARE_TOKEN` | 可选 | 有免费额度 | 中国 A 股数据 |
-| `SEMANTIC_SCHOLAR_KEY` | 可选 | 无 Key 可用 | 学术搜索 |
-
-> **DuckDuckGo** 作为最终搜索降级方案，无需 Key。系统会优雅降级 —— 缺少的可选 Key 只会跳过对应数据源，不影响整体流程。
+---
 
 ## 快速开始
 
-### 作为 Harness Skill 使用
-
-1. 将本目录放到 agent 的 Skill 目录下
-2. Agent 读取 `SKILL.md` 并遵循状态机协议：
+### 1. 安装配置（一次性）
 
 ```bash
-# 初始化
-python3 scripts/run_research.py init \
-  --topic "你的研究主题" \
-  --workspace /path/to/workspace \
-  --skill-dir /path/to/harness-research
-
-# Agent 循环调用:
-python3 scripts/run_research.py next --workspace ... --skill-dir ...
-# → 返回 JSON: {"status": "done_code", "next": true} 或 {"status": "need_llm", ...}
-
-# 随时查看进度:
-python3 scripts/run_research.py status --workspace ... --skill-dir ...
+npx harness-research-mcp setup
 ```
 
-### 30 步流水线
+交互式向导会引导你：
+- 配置搜索引擎 API Key（Tavily 或 Brave，至少一个）
+- 配置 LLM API Key（推荐 Kimi K2.5，最便宜）
+- 可选：Tushare（中国金融数据）、NCBI（PubMed 学术搜索）
+- 自动测试 API 连通性
 
-| 阶段 | 步骤 | 类型 | 说明 |
-|------|------|------|------|
-| **计划** | 1-2 | LLM | 研究计划 + MECE 验证 |
-| **搜索** | 3-9 | CODE | 6 层搜索 + 去重 + 金融/学术/政府/监管/弱信号 |
-| **评估** | 10-16 | 混合 | 信源分类 + CRAAP（代码+LLM）+ 聚合 + 多样性检测 |
-| **验证** | 17-20 | 混合 | 三角验证 + 矛盾分析 + 跨语言对比 + 质量门控 |
-| **撰写** | 21-25 | 混合 | 信源预匹配 + 逐章撰写 + 执行摘要 + 研究方法 |
-| **渲染** | 26-30 | CODE | 参考文献 + 合并 + 清理 + 质量门控 + 三格式渲染 |
+### 2. 注册到你的 AI Agent
 
-## 输出物
+根据你使用的 Agent 框架，复制对应配置：
 
-每次研究在 `output/` 目录下生成三个文件：
+**Claude Desktop / Cursor / Windsurf：**
+```json
+{
+  "mcpServers": {
+    "harness-research": {
+      "command": "npx",
+      "args": ["-y", "harness-research-mcp"]
+    }
+  }
+}
+```
 
-- **PDF** — 可打印报告，含表格分页优化
-- **DOCX** — 可编辑文档，方便二次加工
-- **交互式 HTML** — 侧边栏导航、可折叠章节、Chart.js 图表、表格排序、暗色/亮色主题切换
+**OpenClaw：**
+```bash
+openclaw mcp set harness-research '{"command":"npx","args":["-y","harness-research-mcp"]}'
+```
 
-## 线束工程在本项目中的体现
+**OpenCode：**
+```jsonc
+// ~/.config/opencode/opencode.json
+{
+  "mcp": {
+    "harness-research": {
+      "command": "npx",
+      "args": ["-y", "harness-research-mcp"]
+    }
+  }
+}
+```
 
-核心洞察：**不要让 LLM 编排流程 —— 让代码编排 LLM。**
+### 3. 开始使用
 
-| 关注点 | 传统方式 | 线束方式 |
-|--------|---------|---------|
-| 步骤顺序 | LLM 自行决定 | 状态机强制执行 |
-| 时效性评分 | LLM 猜测 | 代码根据日期计算 |
-| 权威性评分 | LLM 猜测 | 代码查域名数据库映射 |
-| 信源-章节匹配 | LLM 选择（有位置偏差） | TF-IDF + Jaccard（无偏差） |
-| 搜索去重 | LLM 处理或延后 | 代码在搜索后立即执行 |
-| 质量控制 | 听天由命 | 自动门控 + 重试循环 |
-| 报告一致性 | 人工检查 | 代码检查（孤立引用、置信度分布） |
+直接对你的 Agent 说：
 
-这不是要替代 LLM —— 而是让 LLM 做它有价值的事（推理、分析、写作），其他所有事都用确定性代码完成。
+> "帮我深度调研一下 2025 年全球 AI 芯片市场格局"
 
-## 参与贡献
+Agent 会自动调用 `harness_research` 工具，约 10 分钟后返回完整报告。
 
-请参阅 [CONTRIBUTING.md](CONTRIBUTING.md)。
+---
 
-## 许可证
+## 三个 MCP 工具
 
-[Apache License 2.0](LICENSE)
+| 工具 | 说明 | 耗时 |
+|------|------|------|
+| `harness_research` | 完整深度调研，输出专业报告 | ~10 分钟 |
+| `harness_search` | 快速多源搜索，返回结构化结果 | 几秒 |
+| `harness_status` | 查询调研任务进度 | 即时 |
 
-## 致谢
+---
 
-由 [Jiaqi](https://github.com/Nimo1987) 通过线束工程（Harness Engineering）实践构建 —— 围绕 LLM 能力构建确定性编排框架的工程方法论。
+## API Key 说明
+
+### 为什么需要这些 Key？
+
+Harness Research 不依赖任何 LLM 的历史知识库。**所有信息都是实时从互联网搜索获取的**。这需要调用各种搜索和数据 API。
+
+| Key | 用途 | 必要性 | 获取方式 | 费用 |
+|-----|------|--------|---------|------|
+| **TAVILY_API_KEY** | 高级网页搜索（支持深度抓取） | 必填（二选一） | [tavily.com](https://tavily.com) | 免费 1000 次/月 |
+| **BRAVE_API_KEY** | 网页搜索（隐私保护） | 必填（二选一） | [brave.com/search/api](https://brave.com/search/api/) | 免费 2000 次/月 |
+| **KIMI_API_KEY** | LLM 推理（研究计划、评估、撰写） | 必填（二选一） | [platform.moonshot.cn](https://platform.moonshot.cn) | 极低成本 |
+| **OPENROUTER_API_KEY** | LLM 推理（替代 Kimi） | 必填（二选一） | [openrouter.ai](https://openrouter.ai) | 按模型定价 |
+| TUSHARE_TOKEN | 中国 A 股金融数据 | 可选 | [tushare.pro](https://tushare.pro) | 免费基础版 |
+| NCBI_API_KEY | PubMed 学术论文搜索 | 可选 | [ncbi.nlm.nih.gov](https://ncbiinsights.ncbi.nlm.nih.gov/2017/11/02/new-api-keys-for-the-e-utilities/) | 免费 |
+
+**最低配置：1 个搜索 Key + 1 个 LLM Key = 2 个 Key 即可运行。**
+
+### 为什么推荐 Kimi K2.5？
+
+- 价格：约 ¥0.1 / 次完整调研（对比 GPT-4 约 ¥7-35 / 次）
+- 中文能力：原生中文支持，无需翻译中间层
+- 上下文：128K token 上下文窗口，足以处理大量搜索结果
+- 稳定性：API 可用性 99.9%+
+
+---
+
+## 输出格式
+
+| 格式 | macOS | Windows / Linux | 说明 |
+|------|-------|-----------------|------|
+| **HTML** | ✅ | ✅ | 专业排版，支持暗色主题，浏览器打开即可 |
+| **DOCX** | ✅ | ✅ | Word 文档，可直接编辑分享 |
+| **PDF** | ✅ | ❌ | 基于 Puppeteer，仅 macOS |
+| **Markdown** | ✅ | ✅ | 纯文本，便于二次处理 |
+
+---
+
+## CRAAP 评估框架
+
+每一条信源都经过 5 维评估：
+
+| 维度 | 权重 | 评估内容 |
+|------|------|---------|
+| **C**urrency（时效性） | 15% | 发布日期距今多久？ |
+| **A**uthority（权威性） | 25% | 信源来自哪个层级？政府 > 学术 > 媒体 > 博客 |
+| **R**elevance（相关性） | 25% | 与调研主题的匹配度 |
+| **A**ccuracy（准确性） | 20% | 数据是否可验证？有无引用？ |
+| **P**urpose（目的性） | 15% | 信源的写作目的是否客观？ |
+
+### 信源六级分类
+
+| 层级 | 权重 | 来源类型 | 示例 |
+|------|------|---------|------|
+| T0 | 1.2x | 政府原始数据 API | 世界银行 API、美联储 FRED、SEC EDGAR |
+| T1 | 1.0x | 权威机构 | WHO、学术期刊 (Nature, Science)、政府报告 |
+| T2 | 0.8x | 专业机构 | McKinsey、Gartner、金融时报 |
+| T3 | 0.6x | 主流媒体 | Reuters、Bloomberg、TechCrunch |
+| T4 | 0.3x | 一般网站 | 未归类的域名（默认） |
+| T5 | 0.15x | 社交媒体 | Twitter、Reddit、知乎（自动淘汰） |
+
+内置 **530+ 域名**的可信度数据库，覆盖全球主要政府、学术、媒体和专业机构。
+
+---
+
+## 环境诊断
+
+```bash
+npx harness-research-mcp doctor
+```
+
+输出示例：
+```
+  Node.js: v22.15.0 ✅
+  Config dir: ~/.harness-research ✅
+  .env file: ~/.harness-research/.env ✅
+
+  API Keys:
+    TAVILY_API_KEY:     ✅ set
+    BRAVE_API_KEY:      ✅ set
+    KIMI_API_KEY:       ✅ set
+    TUSHARE_TOKEN:      ✅ set
+
+  Rendering:
+    HTML:  ✅ (all platforms)
+    DOCX:  ✅ (all platforms)
+    PDF:   ✅ (Puppeteer available)
+
+  ✅ All checks passed!
+```
+
+---
+
+## 技术架构
+
+```
+┌──────────────────────────────────────────┐
+│  Claude / Cursor / OpenClaw / OpenCode   │
+│            (MCP Client)                  │
+└────────────────┬─────────────────────────┘
+                 │ stdio (MCP Protocol)
+                 ▼
+┌──────────────────────────────────────────┐
+│      harness-research-mcp (Node.js)      │
+│                                          │
+│  Tools:                                  │
+│    harness_research — 完整深度调研         │
+│    harness_search   — 快速多源搜索         │
+│    harness_status   — 进度查询            │
+│                                          │
+│  Core:                                   │
+│    6-Step Pipeline                        │
+│    ├─ LLM (Kimi K2.5 / OpenRouter)       │
+│    ├─ Search (5 sources, parallel)        │
+│    ├─ CRAAP (code + LLM hybrid)           │
+│    ├─ Verify (cross-validation)           │
+│    └─ Render (HTML/DOCX/PDF/MD)           │
+│                                          │
+│  Resources:                              │
+│    prompts/ (5 templates)                │
+│    source_tiers.yaml (530+ domains)       │
+│    styles.css (light/dark themes)         │
+└──────────────────────────────────────────┘
+         │           │           │
+         ▼           ▼           ▼
+    Tavily API   Brave API   arXiv/PubMed/Tushare
+```
+
+**纯 Node.js，无 Python 依赖。** `npx` 一键启动。
+
+---
+
+## 开发
+
+```bash
+git clone https://github.com/Nimo1987/harness-research.git
+cd harness-research
+npm install
+npm run build
+```
+
+---
+
+## License
+
+Apache 2.0 — 自由使用，商业友好。
